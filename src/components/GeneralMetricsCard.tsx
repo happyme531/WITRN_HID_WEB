@@ -22,39 +22,43 @@ const GeneralMetricsCard = memo(function GeneralMetricsCard({ metrics }: General
     return null
   }
 
+  const voltage = metrics.voltage
+  const current = Math.abs(metrics.current)
+  const power = Math.abs(metrics.power)
+
   return (
     <div className="general-metrics">
       <div className="metric-main">
         <div className="metric-highlight">
           <span className="label">电压</span>
-          <span className="value">{metrics.voltage.toFixed(6)}</span>
+          <span className="value">{voltage.toFixed(6)}</span>
           <span className="unit">V</span>
           <div className="metric-bar">
             <div
               className="metric-bar-fill"
-              style={{ width: `${Math.min((metrics.voltage / 30) * 100, 100)}%` }}
+              style={{ width: `${Math.min((voltage / 28) * 100, 100)}%` }}
             />
           </div>
         </div>
         <div className="metric-highlight">
           <span className="label">电流</span>
-          <span className="value">{metrics.current.toFixed(6)}</span>
+          <span className="value">{current.toFixed(6)}</span>
           <span className="unit">A</span>
           <div className="metric-bar alt">
             <div
               className="metric-bar-fill"
-              style={{ width: `${Math.min((metrics.current / 5) * 100, 100)}%` }}
+              style={{ width: `${Math.min((current / 7) * 100, 100)}%` }}
             />
           </div>
         </div>
         <div className="metric-highlight">
           <span className="label">功率</span>
-          <span className="value">{metrics.power.toFixed(6)}</span>
+          <span className="value">{power.toFixed(6)}</span>
           <span className="unit">W</span>
           <div className="metric-bar power">
             <div
               className="metric-bar-fill"
-              style={{ width: `${Math.min((metrics.power / 150) * 100, 100)}%` }}
+              style={{ width: `${Math.min((power / 150) * 100, 100)}%` }}
             />
           </div>
         </div>

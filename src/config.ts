@@ -1,0 +1,1 @@
+export const MAX_UPDATES_PER_SECOND = 15

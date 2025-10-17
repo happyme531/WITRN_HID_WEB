@@ -2,6 +2,8 @@
 
 一个基于 **React + Vite + TypeScript + Pyodide** 的 WITRN USB PD 浏览器端上位机，可直接在网页上完成报文解码与可视化。当前版本具备：
 
+> 本项目由 GPT-5 AI 编写，仍存在不少 bug 与性能问题，欢迎提交 PR 改进体验。感谢 [JohnScotttt/WITRN_HID_API](https://github.com/JohnScotttt/WITRN_HID_API) 依赖库作者的支持。
+
 - 自动加载 Pyodide，并在浏览器内运行官方 `witrnhid` 解析模块；
 - 通过 WebHID（Chrome / Edge 等 Chromium 浏览器支持）直连 WITRN 设备，实时解析 General/PD 报文；
 - 常规电压、电流、功率等指标面板，附带 PD 报文历史列表与详细解码结果；

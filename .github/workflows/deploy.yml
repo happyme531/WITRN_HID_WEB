@@ -29,17 +29,17 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        run: npm ci
-        working-directory: web-ui
+        run: |
+          npm ci
 
       - name: Build
-        run: npm run build
-        working-directory: web-ui
+        run: |
+          npm run build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: web-ui/dist
+          path: /dist
 
   deploy:
     environment:

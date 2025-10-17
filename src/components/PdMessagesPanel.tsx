@@ -26,10 +26,7 @@ const PdMessagesPanel = memo(function PdMessagesPanel({
   onSelectPd,
   onClearPd,
   showEmptyState,
-  canDecode,
-  onDecode,
   actionError,
-  pyStatus,
 }: PdMessagesPanelProps) {
   const pdListRef = useRef<HTMLDivElement | null>(null)
 

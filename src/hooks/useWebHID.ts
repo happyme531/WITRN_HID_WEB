@@ -103,21 +103,27 @@ export function useWebHID() {
     scheduleQueueNotification()
 
     // 每秒打印收到的数据包个数
-    if (!window.packetCounter) {
-      window.packetCounter = {
+    let counter = window.packetCounter
+    if (!counter) {
+      counter = {
         count: 0,
         lastSecond: Math.floor(now / 1000),
         timer: setInterval(() => {
-          const currentSecond = Math.floor(Date.now() / 1000)
-          if (currentSecond !== window.packetCounter.lastSecond) {
-            console.log(`每秒数据包: ${window.packetCounter.count} pkt/s`)
-            window.packetCounter.count = 0
-            window.packetCounter.lastSecond = currentSecond
+          const tracker = window.packetCounter
+          if (!tracker) {
+            return
           }
-        }, 100)
+          const currentSecond = Math.floor(Date.now() / 1000)
+          if (currentSecond !== tracker.lastSecond) {
+            console.log(`每秒数据包: ${tracker.count} pkt/s`)
+            tracker.count = 0
+            tracker.lastSecond = currentSecond
+          }
+        }, 100),
       }
+      window.packetCounter = counter
     }
-    window.packetCounter.count++
+    counter.count += 1
   }, [scheduleQueueNotification])
 
   const releaseReportsUpTo = useCallback((seq: number) => {
@@ -236,6 +242,11 @@ export function useWebHID() {
       notifyTimerRef.current = null
     }
     lastNotifyRef.current = 0
+    const counter = window.packetCounter
+    if (counter) {
+      clearInterval(counter.timer)
+      window.packetCounter = undefined
+    }
     setStatus('idle')
   }, [detachListeners, device])
 
@@ -293,6 +304,11 @@ export function useWebHID() {
         notifyTimerRef.current = null
       }
       lastNotifyRef.current = 0
+      const counter = window.packetCounter
+      if (counter) {
+        clearInterval(counter.timer)
+        window.packetCounter = undefined
+      }
     }
   }, [attachListeners, detachListeners, supported])
 

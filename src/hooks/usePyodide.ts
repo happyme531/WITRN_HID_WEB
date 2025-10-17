@@ -32,12 +32,15 @@ async function ensurePyodideScript(indexUrl: string) {
   if (typeof window === 'undefined') {
     return
   }
+  console.log('[Pyodide] ensure script start', { indexUrl })
 
   const scriptId = 'pyodide-loader'
   const existing = document.getElementById(scriptId) as HTMLScriptElement | null
 
   if (existing) {
+    console.log('[Pyodide] script tag already present')
     if (window.loadPyodide) {
+      console.log('[Pyodide] loadPyodide already on window')
       return
     }
 
@@ -49,6 +52,7 @@ async function ensurePyodideScript(indexUrl: string) {
         { once: true },
       )
     })
+    console.log('[Pyodide] waiting existing script to finish loading')
     return
   }
 
@@ -63,6 +67,7 @@ async function ensurePyodideScript(indexUrl: string) {
     })
     document.body.appendChild(script)
   })
+  console.log('[Pyodide] script appended')
 }
 
 async function mountPythonPackage(pyodide: any) {
@@ -75,7 +80,12 @@ async function mountPythonPackage(pyodide: any) {
   }
 
   for (const entry of PACKAGE_FILES) {
-    const response = await fetch(`/${entry.sourcePath}`)
+    const baseUrl = typeof window === 'undefined'
+      ? import.meta.env.BASE_URL
+      : new URL(import.meta.env.BASE_URL || '/', window.location.origin).toString()
+    const assetUrl = new URL(entry.sourcePath, baseUrl).toString()
+    console.log('[Pyodide] fetching package file', assetUrl)
+    const response = await fetch(assetUrl)
     if (!response.ok) {
       throw new Error(`无法加载 ${entry.sourcePath}: ${response.status}`)
     }
@@ -94,6 +104,8 @@ async function mountPythonPackage(pyodide: any) {
     const data = entry.binary ? new Uint8Array(await response.arrayBuffer()) : await response.text()
     const targetPath = `${PYTHON_PACKAGE_ROOT}/${entry.targetPath}`
     fs.writeFile(targetPath, data, { encoding: entry.binary ? undefined : 'utf8' })
+    const dataLength = entry.binary ? (data as Uint8Array).byteLength : (data as string).length
+    console.log('[Pyodide] mounted file', { targetPath, length: dataLength })
   }
 
   await pyodide.runPythonAsync(
@@ -122,6 +134,7 @@ export function usePyodide(indexUrl: string = PYODIDE_INDEX_URL) {
       try {
         setError(null)
         setStatus((prev) => (prev === 'ready' ? prev : 'loading'))
+        console.log('[Pyodide] bootstrap start')
 
         await ensurePyodideScript(indexUrl)
 
@@ -131,15 +144,18 @@ export function usePyodide(indexUrl: string = PYODIDE_INDEX_URL) {
 
         if (!pyodideLoader) {
           pyodideLoader = window.loadPyodide({ indexURL: indexUrl })
+          console.log('[Pyodide] loadPyodide invoked')
         }
 
         const pyodide = await pyodideLoader
+        console.log('[Pyodide] pyodide loaded')
 
         if (cancelled) {
           return
         }
 
         await mountPythonPackage(pyodide)
+        console.log('[Pyodide] package mounted')
 
         await pyodide.runPythonAsync(
           `
@@ -149,6 +165,7 @@ def decode_hex(payload: str):
     return decode_hex_payload(payload)
           `,
         )
+        console.log('[Pyodide] helper registered')
 
         if (cancelled) {
           return
@@ -156,12 +173,14 @@ def decode_hex(payload: str):
 
         setInstance(pyodide)
         setStatus('ready')
+        console.log('[Pyodide] ready')
       } catch (err) {
         if (cancelled) {
           return
         }
         setStatus('error')
         setError(err as Error)
+        console.error('[Pyodide] bootstrap error', err)
       }
     }
 

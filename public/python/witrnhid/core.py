@@ -1,17 +1,16 @@
 # Start of File
 # Copyright (c) 2025 JohnScotttt
-# Version pre 0.2.0
+# Version pre 0.3.2
 
 try:
     import hid  # type: ignore
-except ModuleNotFoundError:
+except ModuleNotFoundError:  # pragma: no cover - optional dependency in web build
     hid = None
 
 import struct
-import time
-from datetime import timedelta
+from datetime import timedelta, datetime
 
-__version__ = "pre 0.2.0"
+__version__ = "pre 0.3.2"
 __flag__ = False
 
 
@@ -2260,11 +2259,16 @@ class pd_msg(metadata):
 
 
 class WITRN_DEV:
-    def __init__(self, *args, debug=False, **kwargs):
-        if hid is None:
-            raise RuntimeError("hidapi module is not available in this environment")
+    def __init__(self, **kwargs):
         global __flag__
-        __flag__ = debug
+        __flag__ = kwargs.get("debug", False)
+        self.data = None
+        self.timestamp = None
+        self.last_pdo = None
+        self.last_ext = None
+        self.last_rdo = None
+
+    def open(self, *args, **kwargs):
         vid = pid = path = None
         if args == () and kwargs == {}:
             vid = K2_TARGET_VID
@@ -2291,12 +2295,9 @@ class WITRN_DEV:
                     raise ValueError("Must specify either (vid, pid) or path")
         else:
             raise ValueError("Cannot mix positional and keyword arguments")
-            
-        self.data = None
-        self.timestamp = None
-        self.last_pdo = None
-        self.last_ext = None
-        self.last_rdo = None
+
+        if hid is None:
+            raise RuntimeError("hidapi module is not available in this environment")
 
         self.dev = hid.device()
         if path is None:
@@ -2305,11 +2306,11 @@ class WITRN_DEV:
             self.dev.open_path(path)
 
     def read_data(self) -> list:
-        self.timestamp = time.strftime("%H:%M:%S", time.localtime()) + f".{(int(time.time()*1000)%1000):03d}"
+        self.timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
         self.data = self.dev.read(64)
         return self.data
 
-    def general_unpack(self, data: list = None) -> metadata:
+    def general_unpack(self, data: list = None) -> tuple[str, metadata]:
         if data is None:
             if self.data is None:
                 raise ValueError("No data available to unpack")
@@ -2319,13 +2320,14 @@ class WITRN_DEV:
         else:
             if len(data) < 64:
                 raise ValueError("Data length is less than expected (64 bytes)")
-            return general_msg(data)
+            timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+            return timestamp, general_msg(data)
 
     def pd_unpack(self,
                   data: list = None,
                   last_pdo: metadata = None,
                   last_ext: metadata = None,
-                  last_rdo: metadata = None) -> metadata:
+                  last_rdo: metadata = None) -> tuple[str, metadata]:
         if data is None:
             if self.data is None:
                 raise ValueError("No data available to unpack")
@@ -2344,13 +2346,14 @@ class WITRN_DEV:
         else:
             if len(data) < 64:
                 raise ValueError("Data length is less than expected (64 bytes)")
-            return pd_msg(data, last_pdo, last_ext, last_rdo)
-        
+            timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+            return timestamp, pd_msg(data, last_pdo, last_ext, last_rdo)
+
     def auto_unpack(self,
                     data: list = None,
                     last_pdo: metadata = None,
                     last_ext: metadata = None,
-                    last_rdo: metadata = None) -> metadata:
+                    last_rdo: metadata = None) -> tuple[str, metadata]:
         if data is None:
             if self.data is None:
                 raise ValueError("No data available to unpack")
@@ -2367,7 +2370,6 @@ class WITRN_DEV:
                 return self.general_unpack(data)
             elif data[0] == 254:
                 return self.pd_unpack(data, last_pdo, last_ext, last_rdo)
-            
 
     def close(self):
         self.dev.close()

@@ -159,10 +159,13 @@ export function usePyodide(indexUrl: string = PYODIDE_INDEX_URL) {
 
         await pyodide.runPythonAsync(
           `
-from witrnhid.web import decode_hex_payload
+from witrnhid.web import decode_hex_payload, reset_decoder_state
 
 def decode_hex(payload: str):
     return decode_hex_payload(payload)
+
+def reset_decoder():
+    reset_decoder_state()
           `,
         )
         console.log('[Pyodide] helper registered')

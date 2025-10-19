@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, Optional
 
 from .core import (  # noqa: F401 - re-export for consumers if needed
     general_msg,
+    is_pdo,
+    is_rdo,
     metadata,
     pd_msg,
+    provide_ext,
 )
 
 
@@ -34,6 +37,20 @@ def _normalize_hex(payload: str) -> str:
     if len(cleaned) % 2 != 0:
         raise ValueError("HEX 长度必须为偶数")
     return cleaned.upper()
+
+
+_LAST_PDO: Optional[metadata] = None
+_LAST_EXT: Optional[metadata] = None
+_LAST_RDO: Optional[metadata] = None
+
+
+def reset_decoder_state() -> None:
+    """Reset cached PD context used for multi-packet decoding."""
+
+    global _LAST_PDO, _LAST_EXT, _LAST_RDO
+    _LAST_PDO = None
+    _LAST_EXT = None
+    _LAST_RDO = None
 
 
 def decode_hex_payload(payload: str) -> Dict[str, Any]:
@@ -63,7 +80,8 @@ def decode_hex_payload(payload: str) -> Dict[str, Any]:
         expected_length = packet[1] + 2 if len(packet) > 1 else 0
         if expected_length and len(packet) < expected_length:
             raise ValueError("PD 报文长度不足")
-        decoded = pd_msg(packet)
+        global _LAST_PDO, _LAST_EXT, _LAST_RDO
+        decoded = pd_msg(packet, last_pdo=_LAST_PDO, last_ext=_LAST_EXT, last_rdo=_LAST_RDO)
         tree = _metadata_to_dict(decoded)
         msg_header = None
         try:
@@ -102,6 +120,18 @@ def decode_hex_payload(payload: str) -> Dict[str, Any]:
                     message_type = candidate
             else:
                 message_type = msg_header
+
+        try:
+            if is_pdo(decoded):
+                _LAST_PDO = decoded
+            if provide_ext(decoded):
+                _LAST_EXT = decoded
+            if is_rdo(decoded):
+                _LAST_RDO = decoded
+        except Exception:
+            # Context updates are best-effort; ignore unexpected parsing errors
+            pass
+
         return {
             "status": "ok",
             "message": "pd",

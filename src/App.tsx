@@ -68,6 +68,31 @@ function App() {
   const lastQueuedSeqRef = useRef(0)
   const prevHidStatusRef = useRef(hidStatus)
 
+  const resetPythonDecoder = useCallback(() => {
+    const currentPyodide = pyodideRef.current
+    if (!currentPyodide) {
+      return
+    }
+    let resetProxy: any = null
+    try {
+      resetProxy = currentPyodide.globals.get('reset_decoder')
+    } catch {
+      return
+    }
+    try {
+      const result = resetProxy()
+      if (result && typeof result.destroy === 'function') {
+        result.destroy()
+      }
+    } catch (err) {
+      console.warn('[Pyodide] reset_decoder failed', err)
+    } finally {
+      if (resetProxy) {
+        resetProxy.destroy()
+      }
+    }
+  }, [])
+
   const heroStatus = useMemo(() => {
     if (pyStatus === 'error') {
       return `${statusLabel[pyStatus]}：${pyError?.message ?? '未知错误'}`
@@ -80,15 +105,24 @@ function App() {
   }, [pyodide])
 
   useEffect(() => {
+    if (pyodide) {
+      resetPythonDecoder()
+    }
+  }, [pyodide, resetPythonDecoder])
+
+  useEffect(() => {
     pyStatusRef.current = pyStatus
   }, [pyStatus])
 
   useEffect(() => {
     if (prevHidStatusRef.current !== 'open' && hidStatus === 'open') {
       setShowStatusPanel(false)
+      resetPythonDecoder()
+    } else if (hidStatus !== 'open') {
+      resetPythonDecoder()
     }
     prevHidStatusRef.current = hidStatus
-  }, [hidStatus])
+  }, [hidStatus, resetPythonDecoder])
 
   const canDecode = pyStatus === 'ready' && !isRunning
 
@@ -506,6 +540,7 @@ function App() {
 
   useEffect(() => {
     if (hidStatus !== 'open') {
+      resetPythonDecoder()
       lastProcessedSeqRef.current = 0
       lastQueuedSeqRef.current = 0
       pendingReportsRef.current = []
@@ -514,7 +549,7 @@ function App() {
         processingTimerRef.current = null
       }
     }
-  }, [hidStatus])
+  }, [hidStatus, resetPythonDecoder])
 
   useEffect(() => {
     return () => {
@@ -574,11 +609,12 @@ function App() {
   )
 
   const handleClearPd = useCallback(() => {
+    resetPythonDecoder()
     setPdMessages([])
     setSelectedPdId(null)
     pdIndexCounter.current = 0
     pdIdCounter.current = 0
-  }, [])
+  }, [resetPythonDecoder])
 
   const handleToggleStatusPanel = useCallback(() => {
     setShowStatusPanel((prev) => !prev)
